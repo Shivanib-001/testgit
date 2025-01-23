@@ -1,4 +1,4 @@
-#include <sys/types.h>
+ #include <sys/types.h>
  #include <sys/stat.h>
  #include <fcntl.h>
  #include <termios.h>
@@ -6,8 +6,10 @@
  #include <stdlib.h>
  #include <unistd.h>
  #include <strings.h>
-#include <string.h>
-#include <curl/curl.h>
+ #include <string.h>
+ #include <curl/curl.h>
+
+
  /* baudrate settings are defined in <asm/termbits.h>, which is
  included by <termios.h> */
  #define BAUDRATE B9600
@@ -17,14 +19,25 @@
  #define FALSE 0
  #define TRUE 1
  volatile int STOP=FALSE;
+ /*--------------------- Function decleration ----------------------------*/
+ void insert( int UTC_Time, float lat, float lng, float spd);
+ double lat_filt(float def);
+ double lng_filt(float kef);
+ 
+ 
+ 
+ 
+ /*----------------------------------------------------------------------*/
+ 
  int main()
  {
  int fd,c, res;
  struct termios oldtio,newtio;
  char *buf;
  char *token;
-int timk;
-float lat, lng, spd;
+ int timk;
+ float lat, lng, spd,head;
+ float latitude, longitude, speed;
  /*
  Open modem device for reading and writing and not as controlling tty
  because we don't want to get killed if linenoise sends CTRL−C.
@@ -119,7 +132,7 @@ y+=1;
 }
 
 if(k==y-1){
-//printf("--%s %d \n",token,y);
+
 if(k==1){
 //printf("Time : %d %d \n",atoi(token),y);
 timk=atoi(token);
@@ -127,10 +140,12 @@ timk=atoi(token);
 if(k==3){
 //printf("lat: %f %d \n",atof(token),y);
 lat=atof(token);
+latitude = lat_filt(lat);
 }
 if(k==5){
 //printf("lng: %f %d \n",atof(token),y);
 lng=atof(token);
+longitude= lng_filt(lng);
 }
 if(k==7){
 //printf("speed: %f %d \n",atof(token),y);
@@ -140,7 +155,13 @@ if(k==8){
 head=atof(token);
 }
 printf("%d %f %f %f %f\n",timk,lat,lng,spd,head);
+/*------------------------------- ADD CURL FUNCTION ------------------------------------------*/
+insert(timk,latitude,longitude,speed);
 }
+
+
+
+
 
  k+=1;
 }
@@ -152,3 +173,110 @@ while(token = strtok(NULL,","));
  /* restore the old port settings */
  tcsetattr(fd,TCSANOW,&oldtio);
  }
+ 
+ 
+void insert( int UTC_Time, float lat, float lng, float spd) {
+    unsigned int hour, min, sec;
+    char time_str[9];  
+    hour = (UTC_Time / 10000);
+    min = (UTC_Time % 10000) / 100;
+    sec = (UTC_Time % 10000) % 100;
+    
+    hour = hour + 5;  
+    if (hour >= 24) {
+        hour -= 24;  
+    }
+    
+    min = min + 30;
+    if (min > 59) {
+        min -= 60;  
+    }
+
+    sprintf(time_str, "%02u:%02u:%02u", hour, min, sec);
+
+    CURL *curl;
+    CURLcode res;
+
+    curl_global_init(CURL_GLOBAL_DEFAULT);
+    curl = curl_easy_init();
+
+    if(curl) {
+        const char *url = "https://ap-south-1.aws.data.mongodb-api.com/app/data-xnakx/endpoint/data/v1/action/insertOne";
+        const char *api_key = "o87MBXtxmrtHBATmbQHxDrq2cYGmjxhfmh7szC8fn8C22qFJ2i1My4bGUEmtdJQi";
+        char json_payload[1024];
+
+        sprintf(json_payload, 
+                "{"
+                "\"dataSource\": \"Cluster0\","
+                "\"database\": \"jan23\","
+                "\"collection\": \"test3\","
+                "\"document\": {"
+                "\"time\": \"%s\","
+                "\"latitude\": %.6f,"
+                "\"longitude\": %.6f,"
+                "\"speed\": %.2f"
+                "}"
+                "}", time_str, lat, lng, spd);
+
+        struct curl_slist *headers = NULL;
+        char api_key_header[256];
+        sprintf(api_key_header, "api-key: %s", api_key);
+
+        // Set headers for the request
+        headers = curl_slist_append(headers, "Content-Type: application/json");
+        headers = curl_slist_append(headers, api_key_header);
+
+        // Set curl options
+        curl_easy_setopt(curl, CURLOPT_URL, url);
+        curl_easy_setopt(curl, CURLOPT_HTTPHEADER, headers);
+        curl_easy_setopt(curl, CURLOPT_POSTFIELDS, json_payload);
+
+        // Perform the request
+        res = curl_easy_perform(curl);
+
+        if(res != CURLE_OK) {
+            fprintf(stderr, "curl_easy_perform() failed: %s\n", curl_easy_strerror(res));
+        } else {
+            printf("Document inserted successfully!\n");
+        }
+
+        // Clean up
+        curl_slist_free_all(headers);
+        curl_easy_cleanup(curl);
+    }
+
+    curl_global_cleanup();
+}
+
+
+
+double lat_filt(float def) {
+	double latitude = 0.0;
+	float k_lat_deg=(def*0.01);
+	unsigned int deg = (int)k_lat_deg;
+	if(deg > 8 && 37 > deg){
+		float sec = (def- (float)deg*100)/60;
+		latitude = (float)deg + sec;
+	}
+
+	return latitude;
+}
+
+
+
+double lng_filt(float kef){
+	double longitude = 0.0;
+	float k_lng_deg=(kef*0.01);
+	unsigned int deglng = (int)k_lng_deg;
+	if(deglng > 68 && 97 > deglng){
+		float seclng = (kef- (float)deglng*100)/60;
+		longitude = (float)deglng + seclng;
+
+	}
+
+	return longitude;
+}
+
+
+ 
+ 

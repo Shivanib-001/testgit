@@ -3,32 +3,52 @@
 #include <curl/curl.h>
 #include <unistd.h>
 
-void insert() {
+void insert(unsigned long int UTC_Time, float lat, float lng, float spd) {
+    unsigned int hour, min, sec;
+    char time_str[9];  
+    hour = (UTC_Time / 10000);
+    min = (UTC_Time % 10000) / 100;
+    sec = (UTC_Time % 10000) % 100;
+    
+    hour = hour + 5;  
+    if (hour >= 24) {
+        hour -= 24;  
+    }
+    
+    min = min + 30;
+    if (min > 59) {
+        min -= 60;  
+    }
+
+    sprintf(time_str, "%02u:%02u:%02u", hour, min, sec);
+
     CURL *curl;
     CURLcode res;
 
-    // Initialize libcurl
     curl_global_init(CURL_GLOBAL_DEFAULT);
     curl = curl_easy_init();
 
     if(curl) {
         const char *url = "https://ap-south-1.aws.data.mongodb-api.com/app/data-xnakx/endpoint/data/v1/action/insertOne";
         const char *api_key = "o87MBXtxmrtHBATmbQHxDrq2cYGmjxhfmh7szC8fn8C22qFJ2i1My4bGUEmtdJQi";
-        const char *json_payload = 
-        "{"
-        "\"dataSource\": \"Cluster0\","
-        "\"database\": \"learn-data-api\","
-        "\"collection\": \"testCollection\","
-        "\"document\": "
-        "{"
-        "\"latitude\":64.678,"
-        "\"longitude\":73.345"
-        "}"
-        "}";
+        char json_payload[1024];
+
+        sprintf(json_payload, 
+                "{"
+                "\"dataSource\": \"Cluster0\","
+                "\"database\": \"jan23\","
+                "\"collection\": \"test3\","
+                "\"document\": {"
+                "\"time\": \"%s\","
+                "\"latitude\": %.6f,"
+                "\"longitude\": %.6f,"
+                "\"speed\": %.2f"
+                "}"
+                "}", time_str, lat, lng, spd);
 
         struct curl_slist *headers = NULL;
         char api_key_header[256];
-        snprintf(api_key_header, sizeof(api_key_header), "api-key: %s", api_key);
+        sprintf(api_key_header, "api-key: %s", api_key);
 
         // Set headers for the request
         headers = curl_slist_append(headers, "Content-Type: application/json");
@@ -58,8 +78,13 @@ void insert() {
 
 int main() {
     while (1) {
-        insert();
-        sleep(2);  // Sleep for 2 seconds
+        unsigned long int UTC_Time = 105300;
+        float lat = 27.123;
+        float lng = 77.234;
+        float spd = 2.34;
+
+        insert(UTC_Time, lat, lng, spd);
+        sleep(2);
     }
 
     return 0;
