@@ -5,7 +5,7 @@
 
 void insert(unsigned long int UTC_Time, float lat, float lng, float spd) {
     unsigned int hour, min, sec;
-    char time_str[9];  
+    char time_str[9]; 
     hour = (UTC_Time / 10000);
     min = (UTC_Time % 10000) / 100;
     sec = (UTC_Time % 10000) % 100;
@@ -32,7 +32,6 @@ void insert(unsigned long int UTC_Time, float lat, float lng, float spd) {
         const char *url = "https://ap-south-1.aws.data.mongodb-api.com/app/data-xnakx/endpoint/data/v1/action/insertOne";
         const char *api_key = "o87MBXtxmrtHBATmbQHxDrq2cYGmjxhfmh7szC8fn8C22qFJ2i1My4bGUEmtdJQi";
         char json_payload[1024];
-
         sprintf(json_payload, 
                 "{"
                 "\"dataSource\": \"Cluster0\","

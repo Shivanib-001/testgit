@@ -33,11 +33,11 @@
  {
  int fd,c, res;
  struct termios oldtio,newtio;
- char *buf;
+ char buf[255];
  char *token;
  int timk;
- float lat, lng, spd,head;
- float latitude, longitude, speed;
+ float spd=0.0;
+ float latitude=0.0, longitude=0.0;
  /*
  Open modem device for reading and writing and not as controlling tty
  because we don't want to get killed if linenoise sends CTRL−C.
@@ -127,7 +127,7 @@
 if(strcmp(token,"V") == 0 && rmc==1){
    printf("GNRMC --invalid");
 }else if(strcmp(token,"V")!=0 && rmc==1){
-///printf("rmc: --valid");
+
 y+=1;
 }
 
@@ -139,29 +139,22 @@ timk=atoi(token);
 }
 if(k==3){
 //printf("lat: %f %d \n",atof(token),y);
-lat=atof(token);
-latitude = lat_filt(lat);
+//lat=atof(token);
+latitude = lat_filt(atof(token));
 }
 if(k==5){
 //printf("lng: %f %d \n",atof(token),y);
-lng=atof(token);
-longitude= lng_filt(lng);
+//lng=atof(token);
+longitude= lng_filt(atof(token));
 }
 if(k==7){
 //printf("speed: %f %d \n",atof(token),y);
 spd=atof(token);
 }
-if(k==8){
-head=atof(token);
-}
-printf("%d %f %f %f %f\n",timk,lat,lng,spd,head);
+printf("%d %f %f %f \n",timk,latitude,longitude,spd);
 /*------------------------------- ADD CURL FUNCTION ------------------------------------------*/
-insert(timk,latitude,longitude,speed);
+insert(timk,latitude,longitude,spd);
 }
-
-
-
-
 
  k+=1;
 }
@@ -174,7 +167,7 @@ while(token = strtok(NULL,","));
  tcsetattr(fd,TCSANOW,&oldtio);
  }
  
- 
+/*-------------------------------------------------------------------------------------------------------------------------------------*/ 
 void insert( int UTC_Time, float lat, float lng, float spd) {
     unsigned int hour, min, sec;
     char time_str[9];  
